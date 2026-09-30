@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import { useRouter } from 'next/navigation';
+import { BankIcon, AlertCircleIcon, CheckCircleIcon, ShieldCheckIcon } from '@/components/Icons';
 
 type Mode = 'login' | 'signup';
 
@@ -35,7 +36,7 @@ export default function LoginPage() {
       if (error) {
         setError(error.message);
       } else {
-        setInfo('Account created! Check your email to confirm, then sign in.');
+        setInfo('Account created successfully! Check your email to confirm, then sign in.');
         setMode('login');
         setPassword('');
       }
@@ -44,61 +45,71 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 p-4">
-      <div className="w-full max-w-sm">
-        {/* Logo / Header */}
+    <div className="relative min-h-screen flex items-center justify-center p-4 bg-[#0a0f1d] selection:bg-emerald-500/30 selection:text-emerald-300">
+      {/* Radiant ambient glow */}
+      <div className="ambient-bg" />
+
+      <div className="relative z-10 w-full max-w-md">
+        {/* Brand Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 mb-4">
-            <span className="text-4xl">🏦</span>
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-600 via-teal-500 to-cyan-400 p-[1px] shadow-2xl shadow-emerald-500/30 mb-4">
+            <div className="w-full h-full bg-slate-950/80 rounded-[15px] flex items-center justify-center text-emerald-400 backdrop-blur-sm">
+              <BankIcon size={28} />
+            </div>
           </div>
-          <h1 className="text-3xl font-bold text-white">Shop Bank Tracker</h1>
-          <p className="text-emerald-400 mt-1 text-sm">Manage your shop accounts in Birr</p>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Shop Bank Tracker</h1>
+          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
+            Dashen Bank • CBE • Telebirr • ETB Ledger
+          </p>
         </div>
 
-        {/* Card */}
-        <div className="bg-white/5 backdrop-blur border border-white/10 rounded-2xl p-6 shadow-2xl">
-          {/* Tab switcher */}
-          <div className="flex rounded-xl bg-white/5 p-1 mb-5">
+        {/* Auth Card */}
+        <div className="glass-card rounded-3xl p-6 sm:p-8 border border-white/[0.1] shadow-2xl">
+          {/* Mode Switcher */}
+          <div className="flex bg-slate-950/70 p-1.5 rounded-2xl border border-white/[0.06] mb-6">
             <button
               id="tab-login"
               type="button"
               onClick={() => { setMode('login'); setError(''); setInfo(''); }}
-              className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
+              className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
                 mode === 'login'
-                  ? 'bg-emerald-500 text-white shadow'
+                  ? 'bg-gradient-to-r from-emerald-500/25 to-teal-500/15 text-emerald-300 border border-emerald-500/30 shadow-md'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              Sign in
+              Sign In
             </button>
             <button
               id="tab-signup"
               type="button"
               onClick={() => { setMode('signup'); setError(''); setInfo(''); }}
-              className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
+              className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
                 mode === 'signup'
-                  ? 'bg-emerald-500 text-white shadow'
+                  ? 'bg-gradient-to-r from-emerald-500/25 to-teal-500/15 text-emerald-300 border border-emerald-500/30 shadow-md'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              Create account
+              Create Account
             </button>
           </div>
 
           {error && (
-            <div className="bg-red-500/20 border border-red-500/40 text-red-300 rounded-xl p-3 mb-4 text-sm">
-              {error}
+            <div className="rounded-2xl border border-rose-500/40 bg-rose-500/10 p-4 text-rose-300 text-xs sm:text-sm flex items-start gap-2.5 mb-4 animate-in fade-in">
+              <AlertCircleIcon size={16} className="shrink-0 mt-0.5" />
+              <span>{error}</span>
             </div>
           )}
+
           {info && (
-            <div className="bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 rounded-xl p-3 mb-4 text-sm">
-              {info}
+            <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-emerald-300 text-xs sm:text-sm flex items-start gap-2.5 mb-4 animate-in fade-in">
+              <CheckCircleIcon size={16} className="shrink-0 mt-0.5" />
+              <span>{info}</span>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm text-slate-300 mb-1.5">Email</label>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">Email Address</label>
               <input
                 id="email"
                 type="email"
@@ -106,13 +117,13 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="w-full bg-white/10 border border-white/20 text-white placeholder-slate-500 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                className="w-full bg-slate-950/60 border border-white/[0.1] text-white placeholder-slate-500 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
                 placeholder="you@example.com"
               />
             </div>
 
             <div>
-              <label className="block text-sm text-slate-300 mb-1.5">Password</label>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">Password</label>
               <input
                 id="password"
                 type="password"
@@ -121,11 +132,11 @@ export default function LoginPage() {
                 minLength={6}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                className="w-full bg-white/10 border border-white/20 text-white placeholder-slate-500 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                className="w-full bg-slate-950/60 border border-white/[0.1] text-white placeholder-slate-500 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
                 placeholder="••••••••"
               />
               {mode === 'signup' && (
-                <p className="text-slate-500 text-xs mt-1">Minimum 6 characters</p>
+                <p className="text-slate-500 text-[11px] mt-1">Must be at least 6 characters</p>
               )}
             </div>
 
@@ -133,13 +144,20 @@ export default function LoginPage() {
               id="auth-submit"
               type="submit"
               disabled={loading}
-              className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:bg-emerald-700 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl text-lg transition-colors shadow-lg shadow-emerald-500/20 mt-2"
+              className="w-full mt-2 flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl font-bold text-sm text-slate-950 bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 hover:from-emerald-300 hover:to-cyan-300 shadow-lg shadow-emerald-500/25 active:scale-[0.99] transition-all disabled:opacity-50"
             >
               {loading
                 ? (mode === 'login' ? 'Signing in…' : 'Creating account…')
-                : (mode === 'login' ? 'Sign in' : 'Create account')}
+                : (mode === 'login' ? 'Sign In to Dashboard' : 'Create New Account')}
             </button>
           </form>
+
+          <div className="mt-6 pt-4 border-t border-white/[0.06] text-center">
+            <div className="inline-flex items-center gap-1.5 text-[11px] text-slate-400">
+              <ShieldCheckIcon size={13} className="text-emerald-400" />
+              <span>Secured with Supabase Auth & PostgreSQL RLS</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>

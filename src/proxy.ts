@@ -31,6 +31,11 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
+  // API routes: return 401 instead of redirecting (fetch() would silently follow a redirect)
+  if (!user && pathname.startsWith('/api/')) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   if (!user && pathname !== '/login') {
     const url = request.nextUrl.clone();
     url.pathname = '/login';

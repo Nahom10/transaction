@@ -208,6 +208,12 @@ create policy "entries_insert"
   to authenticated
   with check (auth.uid() is not null);
 
+create policy "entries_update"
+  on public.entries for update
+  to authenticated
+  using (true)
+  with check (true);
+
 create policy "entries_delete"
   on public.entries for delete
   to authenticated

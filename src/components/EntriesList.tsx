@@ -96,11 +96,12 @@ export default function EntriesList({ entries, accounts, year, month, onYearMont
   }
 
   // Month totals
-  const totalSalesDeposited = entries.filter(e => e.kind === 'sales_deposited').reduce((s, e) => s + e.amount, 0);
-  const totalTelebirrSales  = entries.filter(e => e.kind === 'telebirr_sales').reduce((s, e) => s + e.amount, 0);
-  const totalTransfers      = entries.filter(e => ['telebirr_to_cbe','telebirr_to_dashen','dashen_to_telebirr','cbe_to_telebirr'].includes(e.kind)).reduce((s, e) => s + e.amount, 0);
-  const totalSuppliers      = entries.filter(e => e.kind === 'paid_supplier').reduce((s, e) => s + e.amount, 0);
-  const missingReceipts     = entries.filter(e => !e.receipt_path).length;
+  const totalSalesDeposited    = entries.filter(e => e.kind === 'sales_deposited').reduce((s, e) => s + e.amount, 0);
+  const totalSalesDepositedCBE = entries.filter(e => e.kind === 'sales_deposited_cbe').reduce((s, e) => s + e.amount, 0);
+  const totalTelebirrSales     = entries.filter(e => e.kind === 'telebirr_sales').reduce((s, e) => s + e.amount, 0);
+  const totalTransfers         = entries.filter(e => ['telebirr_to_cbe','telebirr_to_dashen','dashen_to_telebirr','cbe_to_telebirr'].includes(e.kind)).reduce((s, e) => s + e.amount, 0);
+  const totalSuppliers         = entries.filter(e => e.kind === 'paid_supplier').reduce((s, e) => s + e.amount, 0);
+  const missingReceipts        = entries.filter(e => !e.receipt_path).length;
 
   // Supplier summary
   const supplierMap: Record<string, number> = {};
@@ -142,10 +143,11 @@ export default function EntriesList({ entries, accounts, year, month, onYearMont
       {/* Month totals */}
       <div className="grid grid-cols-2 gap-3">
         {[
-          { label: 'Sales (Dashen)', val: totalSalesDeposited, color: 'emerald' },
-          { label: 'Telebirr Sales', val: totalTelebirrSales, color: 'cyan' },
-          { label: 'Transfers', val: totalTransfers, color: 'violet' },
-          { label: 'Paid Suppliers', val: totalSuppliers, color: 'rose' },
+          { label: 'Sales (Dashen)', val: totalSalesDeposited,    color: 'emerald' },
+          { label: 'Sales (CBE)',    val: totalSalesDepositedCBE, color: 'teal' },
+          { label: 'Telebirr Sales', val: totalTelebirrSales,     color: 'cyan' },
+          { label: 'Transfers',      val: totalTransfers,         color: 'violet' },
+          { label: 'Paid Suppliers', val: totalSuppliers,         color: 'rose' },
         ].map(({ label, val, color }) => (
           <div key={label} className={`bg-${color}-500/10 border border-${color}-500/20 rounded-2xl p-3`}>
             <div className={`text-${color}-400 text-xs font-medium mb-1`}>{label}</div>

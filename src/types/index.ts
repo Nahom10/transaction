@@ -1,5 +1,6 @@
 export type EntryKind =
   | 'sales_deposited'
+  | 'sales_deposited_cbe'
   | 'telebirr_sales'
   | 'telebirr_to_cbe'
   | 'telebirr_to_dashen'
@@ -38,21 +39,23 @@ export interface Entry {
 }
 
 export const KIND_LABELS: Record<EntryKind, string> = {
-  sales_deposited:    'Sales deposited to Dashen',
-  telebirr_sales:     'Telebirr sales received',
-  telebirr_to_cbe:    'Telebirr → CBE',
-  telebirr_to_dashen: 'Telebirr → Dashen',
-  dashen_to_telebirr: 'Dashen → Telebirr',
-  cbe_to_telebirr:    'CBE → Telebirr',
-  paid_supplier:      'Paid supplier',
+  sales_deposited:     'Sales deposited to Dashen',
+  sales_deposited_cbe: 'Sales deposited to CBE',
+  telebirr_sales:      'Telebirr sales received',
+  telebirr_to_cbe:     'Telebirr → CBE',
+  telebirr_to_dashen:  'Telebirr → Dashen',
+  dashen_to_telebirr:  'Dashen → Telebirr',
+  cbe_to_telebirr:     'CBE → Telebirr',
+  paid_supplier:       'Paid supplier',
 };
 
 export const KIND_FROM_TO: Record<EntryKind, { from?: string; to?: string }> = {
-  sales_deposited:    { to: 'Dashen Bank' },
-  telebirr_sales:     { to: 'Telebirr' },
-  telebirr_to_cbe:    { from: 'Telebirr', to: 'CBE' },
-  telebirr_to_dashen: { from: 'Telebirr', to: 'Dashen Bank' },
-  dashen_to_telebirr: { from: 'Dashen Bank', to: 'Telebirr' },
-  cbe_to_telebirr:    { from: 'CBE', to: 'Telebirr' },
-  paid_supplier:      {},
+  sales_deposited:     { to: 'Dashen Bank' },
+  sales_deposited_cbe: { to: 'CBE' },
+  telebirr_sales:      { to: 'Telebirr' },
+  telebirr_to_cbe:     { from: 'Telebirr', to: 'CBE' },
+  telebirr_to_dashen:  { from: 'Telebirr', to: 'Dashen Bank' },
+  dashen_to_telebirr:  { from: 'Dashen Bank', to: 'Telebirr' },
+  cbe_to_telebirr:     { from: 'CBE', to: 'Telebirr' },
+  paid_supplier:       {},
 };

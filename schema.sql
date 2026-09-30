@@ -1,4 +1,4 @@
-﻿-- ============================================================
+-- ============================================================
 -- Shop Bank Tracker - Supabase schema
 -- Safe to run multiple times (drops and recreates everything).
 -- ============================================================
@@ -20,6 +20,7 @@ drop type  if exists entry_kind              cascade;
 -- ============================================================
 create type entry_kind as enum (
   'sales_deposited',
+  'sales_deposited_cbe',
   'telebirr_sales',
   'telebirr_to_cbe',
   'telebirr_to_dashen',
@@ -74,6 +75,14 @@ as
   from public.entries  e
   join public.accounts a on a.name = 'Dashen Bank'
   where e.kind = 'sales_deposited'
+
+  union all
+
+  -- sales_deposited_cbe -> CBE +amount
+  select e.id, a.id, e.amount
+  from public.entries  e
+  join public.accounts a on a.name = 'CBE'
+  where e.kind = 'sales_deposited_cbe'
 
   union all
 

@@ -1,10 +1,19 @@
 ﻿-- ============================================================
 -- Shop Bank Tracker - Supabase schema
--- Run this ONCE in the Supabase SQL editor after creating your project.
+-- Safe to run multiple times (drops and recreates everything).
 -- ============================================================
 
 -- 0. Extensions
 create extension if not exists "pgcrypto";
+
+-- ============================================================
+-- Clean up previous runs (order matters: views first, then tables, then type)
+-- ============================================================
+drop view  if exists public.account_balances cascade;
+drop view  if exists public.account_moves    cascade;
+drop table if exists public.entries          cascade;
+drop table if exists public.accounts         cascade;
+drop type  if exists entry_kind              cascade;
 
 -- ============================================================
 -- 1. ENUM
@@ -55,7 +64,7 @@ create table public.entries (
 -- ============================================================
 -- 4. View: account_moves
 --    Turns each entry into +/- delta rows per account touched.
---    security_invoker = true means the view runs as the calling user (respects RLS).
+--    security_invoker = true means the view respects RLS.
 -- ============================================================
 create or replace view public.account_moves
   with (security_invoker = true)
@@ -169,7 +178,6 @@ group by a.id, a.name, a.opening_balance, a.statement_balance;
 alter table public.accounts enable row level security;
 alter table public.entries  enable row level security;
 
--- accounts: authenticated users can read; update opening/statement balances
 create policy "accounts_select"
   on public.accounts for select
   to authenticated
@@ -181,7 +189,6 @@ create policy "accounts_update"
   using (true)
   with check (true);
 
--- entries: authenticated users full CRUD
 create policy "entries_select"
   on public.entries for select
   to authenticated
@@ -199,11 +206,18 @@ create policy "entries_delete"
 
 -- ============================================================
 -- 7. Storage bucket "receipts" (private)
---    Run in Supabase dashboard > SQL Editor
 -- ============================================================
 insert into storage.buckets (id, name, public)
 values ('receipts', 'receipts', false)
 on conflict (id) do nothing;
+
+-- Drop storage policies if they exist (safe to re-run)
+do $$ begin
+  drop policy if exists "receipts_upload" on storage.objects;
+  drop policy if exists "receipts_select" on storage.objects;
+  drop policy if exists "receipts_delete" on storage.objects;
+exception when others then null;
+end $$;
 
 create policy "receipts_upload"
   on storage.objects for insert

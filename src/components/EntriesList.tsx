@@ -52,6 +52,7 @@ export default function EntriesList({ entries, accounts, year, month, onYearMont
   const [filterSupplier, setFilterSupplier] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState('');
 
   // Filtered entries
   const filtered = entries.filter(e => {
@@ -78,12 +79,22 @@ export default function EntriesList({ entries, accounts, year, month, onYearMont
 
   async function addReceipt(entryId: string, file: File) {
     setUploadingId(entryId);
-    const fd = new FormData();
-    fd.append('file', file);
-    fd.append('entry_id', entryId);
-    await fetch('/api/receipt', { method: 'POST', body: fd });
-    setUploadingId(null);
-    onRefresh();
+    setUploadError('');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('entry_id', entryId);
+      const res = await fetch('/api/receipt', { method: 'POST', body: fd });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        setUploadError('Upload failed: ' + (j.error ?? res.statusText));
+      }
+    } catch (err) {
+      setUploadError('Upload failed: ' + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setUploadingId(null);
+      onRefresh();
+    }
   }
 
   async function deleteEntry(id: string) {
@@ -163,6 +174,17 @@ export default function EntriesList({ entries, accounts, year, month, onYearMont
             <div className="text-red-400 font-bold">{missingReceipts} receipt{missingReceipts > 1 ? 's' : ''} missing this month</div>
             <div className="text-red-300/70 text-xs">Add receipts to entries marked MISSING below.</div>
           </div>
+        </div>
+      )}
+
+      {uploadError && (
+        <div className="bg-orange-500/10 border border-orange-500/30 rounded-2xl p-3 flex items-center gap-3">
+          <span className="text-2xl">⚠️</span>
+          <div className="flex-1">
+            <div className="text-orange-400 font-bold text-sm">{uploadError}</div>
+            <div className="text-orange-300/70 text-xs mt-0.5">Check that the Supabase storage bucket &quot;receipts&quot; exists and policies are set.</div>
+          </div>
+          <button onClick={() => setUploadError('')} className="text-orange-400 hover:text-white text-lg leading-none">✕</button>
         </div>
       )}
 

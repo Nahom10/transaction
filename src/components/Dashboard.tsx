@@ -4,7 +4,6 @@ import { useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import { useRouter } from 'next/navigation';
 import { AccountBalance, Account, Entry } from '@/types';
-import { monthRange } from '@/lib/utils';
 import BalancesTable from '@/components/BalancesTable';
 import EntryForm from '@/components/EntryForm';
 import EntriesList from '@/components/EntriesList';
@@ -14,23 +13,20 @@ interface Props {
   initialBalances: AccountBalance[];
   initialAccounts: Account[];
   initialEntries: Entry[];
-  initialYear: number;
-  initialMonth: number;
 }
 
 export default function Dashboard({
   initialBalances,
   initialAccounts,
   initialEntries,
-  initialYear,
-  initialMonth,
 }: Props) {
   const router = useRouter();
   const [balances, setBalances] = useState(initialBalances);
   const [accounts] = useState(initialAccounts);
   const [entries, setEntries] = useState(initialEntries);
-  const [year, setYear] = useState(initialYear);
-  const [month, setMonth] = useState(initialMonth);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [dateLabel, setDateLabel] = useState('All Time');
   const [activeTab, setActiveTab] = useState<'balances' | 'entry' | 'list'>('list');
 
   const refreshBalances = useCallback(async () => {
@@ -39,30 +35,33 @@ export default function Dashboard({
     if (data) setBalances(data as AccountBalance[]);
   }, []);
 
-  const refreshEntries = useCallback(async (y: number, m: number) => {
+  const refreshEntries = useCallback(async (start?: string, end?: string) => {
     const sb = createClient();
-    const { from, to } = monthRange(y, m);
-    const { data } = await sb
+    let query = sb
       .from('entries')
       .select('*, paid_from_account:accounts!paid_from(name)')
-      .gte('entry_date', from)
-      .lte('entry_date', to)
       .order('entry_date', { ascending: false })
       .order('created_at', { ascending: false });
+
+    if (start) query = query.gte('entry_date', start);
+    if (end) query = query.lte('entry_date', end);
+
+    const { data } = await query;
     if (data) setEntries(data as Entry[]);
   }, []);
 
-  const handleYearMonthChange = useCallback((y: number, m: number) => {
-    setYear(y);
-    setMonth(m);
-    refreshEntries(y, m);
+  const handleDateRangeChange = useCallback((start: string, end: string, label: string) => {
+    setStartDate(start);
+    setEndDate(end);
+    setDateLabel(label);
+    refreshEntries(start, end);
   }, [refreshEntries]);
 
   const handleSaved = useCallback(() => {
     refreshBalances();
-    refreshEntries(year, month);
+    refreshEntries(startDate, endDate);
     setActiveTab('list');
-  }, [refreshBalances, refreshEntries, year, month]);
+  }, [refreshBalances, refreshEntries, startDate, endDate]);
 
   async function handleLogout() {
     const sb = createClient();
@@ -79,7 +78,7 @@ export default function Dashboard({
       <div className="ambient-bg" />
 
       {/* Modern Top Header */}
-      <header className="sticky top-0 z-30 glass-panel border-b border-white/[0.08] shadow-sm">
+      <header className="sticky top-0 z-30 bg-[#0a0f1d]/95 backdrop-blur-md border-b border-white/[0.08] shadow-sm">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
             <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 via-teal-500 to-cyan-400 p-[1px] shadow-lg shadow-emerald-500/20">
@@ -113,7 +112,7 @@ export default function Dashboard({
       </header>
 
       {/* Floating Segmented Navigation */}
-      <div className="sticky top-16 z-20 glass-panel border-b border-white/[0.06] py-2.5 px-4">
+      <div className="sticky top-16 z-20 bg-[#0a0f1d]/95 backdrop-blur-md border-b border-white/[0.06] py-2.5 px-4">
         <div className="max-w-4xl mx-auto">
           <div className="flex bg-slate-950/60 p-1.5 rounded-2xl border border-white/[0.06] shadow-inner">
             {[
@@ -135,8 +134,8 @@ export default function Dashboard({
                   }`}
                 >
                   <Icon size={16} className={isActive ? 'text-emerald-400' : 'text-slate-400'} />
-                  <span className="hidden xs:inline">{tab.label}</span>
-                  <span className="xs:hidden">{tab.id === 'list' ? 'Entries' : tab.id === 'entry' ? 'Add' : 'Balances'}</span>
+                  <span className="hidden sm:inline">{tab.label}</span>
+                  <span className="sm:hidden">{tab.id === 'list' ? 'Entries' : tab.id === 'entry' ? 'Add' : 'Balances'}</span>
 
                   {tab.badge && (
                     <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
@@ -175,12 +174,13 @@ export default function Dashboard({
             <EntriesList
               entries={entries}
               accounts={accounts}
-              year={year}
-              month={month}
-              onYearMonthChange={handleYearMonthChange}
+              startDate={startDate}
+              endDate={endDate}
+              dateLabel={dateLabel}
+              onDateRangeChange={handleDateRangeChange}
               onRefresh={() => {
                 refreshBalances();
-                refreshEntries(year, month);
+                refreshEntries(startDate, endDate);
               }}
             />
           </div>

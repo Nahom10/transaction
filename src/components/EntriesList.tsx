@@ -12,21 +12,21 @@ import {
   DownloadIcon,
   SearchIcon,
   TrashIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   AlertCircleIcon,
   FileTextIcon,
   XIcon,
   EyeIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
+  CalendarIcon
 } from '@/components/Icons';
 
 interface Props {
   entries: Entry[];
   accounts: Account[];
-  year: number;
-  month: number;
-  onYearMonthChange: (year: number, month: number) => void;
+  startDate: string;
+  endDate: string;
+  dateLabel: string;
+  onDateRangeChange: (startDate: string, endDate: string, label: string) => void;
   onRefresh: () => void;
 }
 
@@ -35,7 +35,7 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
-function downloadCSV(entries: Entry[], year: number, month: number) {
+function downloadCSV(entries: Entry[], dateLabel: string) {
   const header = ['Date', 'What Happened', 'From', 'To', 'Note', 'Amount (ETB)', 'Receipt Attached'];
   const rows = entries.map(e => {
     const ft = KIND_FROM_TO[e.kind];
@@ -58,12 +58,21 @@ function downloadCSV(entries: Entry[], year: number, month: number) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `shop-bank-${year}-${String(month).padStart(2, '0')}.csv`;
+  const safeLabel = (dateLabel || 'transactions').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  a.download = `shop-bank-${safeLabel}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
 
-export default function EntriesList({ entries, accounts, year, month, onYearMonthChange, onRefresh }: Props) {
+export default function EntriesList({
+  entries,
+  accounts,
+  startDate,
+  endDate,
+  dateLabel,
+  onDateRangeChange,
+  onRefresh
+}: Props) {
   const [filterAccount, setFilterAccount] = useState('');
   const [filterSupplier, setFilterSupplier] = useState('');
   const [quickFilter, setQuickFilter] = useState<'all' | 'sales' | 'transfers' | 'suppliers' | 'missing'>('all');
@@ -74,6 +83,9 @@ export default function EntriesList({ entries, accounts, year, month, onYearMont
 
   // Filter logic
   const filtered = entries.filter(e => {
+    if (startDate && e.entry_date < startDate) return false;
+    if (endDate && e.entry_date > endDate) return false;
+
     if (quickFilter === 'sales') {
       if (!['sales_deposited', 'sales_deposited_cbe', 'telebirr_sales'].includes(e.kind)) return false;
     } else if (quickFilter === 'transfers') {
@@ -147,74 +159,161 @@ export default function EntriesList({ entries, accounts, year, month, onYearMont
     onRefresh();
   }
 
-  // Month totals calculations
-  const totalSalesDeposited    = entries.filter(e => e.kind === 'sales_deposited').reduce((s, e) => s + e.amount, 0);
-  const totalSalesDepositedCBE = entries.filter(e => e.kind === 'sales_deposited_cbe').reduce((s, e) => s + e.amount, 0);
-  const totalTelebirrSales     = entries.filter(e => e.kind === 'telebirr_sales').reduce((s, e) => s + e.amount, 0);
-  const totalTransfers         = entries.filter(e => ['telebirr_to_cbe','telebirr_to_dashen','dashen_to_telebirr','cbe_to_telebirr'].includes(e.kind)).reduce((s, e) => s + e.amount, 0);
-  const totalSuppliers         = entries.filter(e => e.kind === 'paid_supplier').reduce((s, e) => s + e.amount, 0);
-  const missingReceipts        = entries.filter(e => !e.receipt_path).length;
+  // Filtered period totals calculations
+  const totalSalesDeposited    = filtered.filter(e => e.kind === 'sales_deposited').reduce((s, e) => s + e.amount, 0);
+  const totalSalesDepositedCBE = filtered.filter(e => e.kind === 'sales_deposited_cbe').reduce((s, e) => s + e.amount, 0);
+  const totalTelebirrSales     = filtered.filter(e => e.kind === 'telebirr_sales').reduce((s, e) => s + e.amount, 0);
+  const totalTransfers         = filtered.filter(e => ['telebirr_to_cbe','telebirr_to_dashen','dashen_to_telebirr','cbe_to_telebirr'].includes(e.kind)).reduce((s, e) => s + e.amount, 0);
+  const totalSuppliers         = filtered.filter(e => e.kind === 'paid_supplier').reduce((s, e) => s + e.amount, 0);
+  const missingReceipts        = filtered.filter(e => !e.receipt_path).length;
 
-  // Supplier summary
+  // Supplier summary for filtered period
   const supplierMap: Record<string, number> = {};
-  entries.filter(e => e.kind === 'paid_supplier').forEach(e => {
+  filtered.filter(e => e.kind === 'paid_supplier').forEach(e => {
     const name = e.note?.trim() || 'Unknown Supplier';
     supplierMap[name] = (supplierMap[name] || 0) + e.amount;
   });
   const supplierSummary = Object.entries(supplierMap).sort((a, b) => b[1] - a[1]);
 
-  // Prev/next month
-  function prevMonth() {
-    if (month === 1) onYearMonthChange(year - 1, 12);
-    else onYearMonthChange(year, month - 1);
-  }
-  function nextMonth() {
+  function applyPreset(preset: 'all' | 'this_month' | 'last_month' | 'today') {
     const now = new Date();
-    if (year === now.getFullYear() && month === now.getMonth() + 1) return;
-    if (month === 12) onYearMonthChange(year + 1, 1);
-    else onYearMonthChange(year, month + 1);
+    if (preset === 'all') {
+      onDateRangeChange('', '', 'All Time');
+    } else if (preset === 'today') {
+      const today = now.toISOString().slice(0, 10);
+      onDateRangeChange(today, today, 'Today');
+    } else if (preset === 'this_month') {
+      const y = now.getFullYear();
+      const m = now.getMonth() + 1;
+      const from = `${y}-${String(m).padStart(2, '0')}-01`;
+      const lastDay = new Date(y, m, 0).getDate();
+      const to = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+      onDateRangeChange(from, to, `${MONTHS[m - 1]} ${y}`);
+    } else if (preset === 'last_month') {
+      const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const y = prev.getFullYear();
+      const m = prev.getMonth() + 1;
+      const from = `${y}-${String(m).padStart(2, '0')}-01`;
+      const lastDay = new Date(y, m, 0).getDate();
+      const to = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+      onDateRangeChange(from, to, `${MONTHS[m - 1]} ${y}`);
+    }
   }
 
-  function goToCurrentMonth() {
-    const now = new Date();
-    onYearMonthChange(now.getFullYear(), now.getMonth() + 1);
+  function handleCustomDate(newStart: string, newEnd: string) {
+    let label = 'Custom Range';
+    if (newStart && newEnd) {
+      label = `${formatDate(newStart)} – ${formatDate(newEnd)}`;
+    } else if (newStart) {
+      label = `From ${formatDate(newStart)}`;
+    } else if (newEnd) {
+      label = `Until ${formatDate(newEnd)}`;
+    } else {
+      label = 'All Time';
+    }
+    onDateRangeChange(newStart, newEnd, label);
   }
 
   return (
     <div className="space-y-6">
-      {/* Month Navigator Header */}
-      <div className="glass-card rounded-2xl p-4 flex items-center justify-between shadow-lg">
-        <button
-          id="prev-month"
-          onClick={prevMonth}
-          className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-slate-200 hover:text-white border border-white/[0.08] transition-all active:scale-95"
-          title="Previous Month"
-        >
-          <ChevronLeftIcon size={18} />
-        </button>
-
-        <div className="flex flex-col items-center">
-          <div className="flex items-center gap-2">
-            <span className="text-white font-extrabold text-lg sm:text-xl tracking-tight">
-              {MONTHS[month - 1]} {year}
-            </span>
+      {/* Date Range & Date Picker Filter Card */}
+      <div className="glass-card rounded-2xl p-4 sm:p-5 shadow-lg border border-white/[0.08] space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500/20 to-teal-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/30 shadow-inner shrink-0">
+              <CalendarIcon size={20} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-white font-bold text-base tracking-tight">Date Filter</span>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                  {dateLabel || 'All Time'}
+                </span>
+                <span className="text-xs text-slate-400">
+                  ({filtered.length} transaction{filtered.length === 1 ? '' : 's'})
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Pick custom dates or use presets to filter records
+              </p>
+            </div>
           </div>
-          <button
-            onClick={goToCurrentMonth}
-            className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold tracking-wide transition-colors mt-0.5"
-          >
-            Go to Current Month
-          </button>
+
+          {/* Quick Presets */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              id="preset-all"
+              onClick={() => applyPreset('all')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all active:scale-95 ${
+                !startDate && !endDate
+                  ? 'bg-emerald-500 text-slate-950 font-bold shadow-md shadow-emerald-500/25'
+                  : 'bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/[0.08]'
+              }`}
+            >
+              All Time
+            </button>
+            <button
+              id="preset-this-month"
+              onClick={() => applyPreset('this_month')}
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/[0.08] transition-all active:scale-95"
+            >
+              This Month
+            </button>
+            <button
+              id="preset-last-month"
+              onClick={() => applyPreset('last_month')}
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/[0.08] transition-all active:scale-95"
+            >
+              Last Month
+            </button>
+            <button
+              id="preset-today"
+              onClick={() => applyPreset('today')}
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/[0.08] transition-all active:scale-95"
+            >
+              Today
+            </button>
+          </div>
         </div>
 
-        <button
-          id="next-month"
-          onClick={nextMonth}
-          className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-slate-200 hover:text-white border border-white/[0.08] transition-all active:scale-95"
-          title="Next Month"
-        >
-          <ChevronRightIcon size={18} />
-        </button>
+        {/* Custom Date Picker Inputs */}
+        <div className="flex flex-wrap items-end gap-3 pt-3 border-t border-white/[0.06]">
+          <div className="flex-1 min-w-[140px]">
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+              From Date
+            </label>
+            <input
+              type="date"
+              id="filter-start-date"
+              value={startDate}
+              onChange={(e) => handleCustomDate(e.target.value, endDate)}
+              className="w-full bg-slate-950/90 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white [color-scheme:dark] focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-mono"
+            />
+          </div>
+
+          <div className="flex-1 min-w-[140px]">
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+              To Date
+            </label>
+            <input
+              type="date"
+              id="filter-end-date"
+              value={endDate}
+              onChange={(e) => handleCustomDate(startDate, e.target.value)}
+              className="w-full bg-slate-950/90 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white [color-scheme:dark] focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-mono"
+            />
+          </div>
+
+          {(startDate || endDate) && (
+            <button
+              id="clear-date-filter"
+              onClick={() => applyPreset('all')}
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-all shrink-0 active:scale-95"
+            >
+              Clear Filter
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Monthly Summary Metric Tiles */}
@@ -382,7 +481,7 @@ export default function EntriesList({ entries, accounts, year, month, onYearMont
 
             <button
               id="export-csv"
-              onClick={() => downloadCSV(entries, year, month)}
+              onClick={() => downloadCSV(filtered, dateLabel)}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-200 bg-white/[0.06] hover:bg-emerald-500/20 hover:text-emerald-300 hover:border-emerald-500/30 border border-white/[0.08] transition-all active:scale-95"
               title="Download formatted CSV report"
             >
@@ -395,14 +494,47 @@ export default function EntriesList({ entries, accounts, year, month, onYearMont
 
       {/* Entries List Feed */}
       {filtered.length === 0 ? (
-        <div className="glass-card rounded-2xl p-12 text-center border border-white/[0.06]">
+        <div className="glass-card rounded-2xl p-10 text-center border border-white/[0.06] flex flex-col items-center justify-center">
           <div className="w-12 h-12 rounded-2xl bg-white/[0.04] text-slate-500 flex items-center justify-center mx-auto mb-3">
             <FileTextIcon size={24} />
           </div>
           <h4 className="text-white font-semibold text-sm">No transactions found</h4>
           <p className="text-slate-400 text-xs mt-1 max-w-xs mx-auto">
-            There are no entries matching your current filters for {MONTHS[month - 1]} {year}.
+            {quickFilter !== 'all' || filterAccount || filterSupplier
+              ? `No entries match your active category/account filters for ${dateLabel}.`
+              : `There are no transactions recorded for ${dateLabel}.`}
           </p>
+          <div className="flex items-center gap-2 mt-4 flex-wrap justify-center">
+            {(startDate || endDate) && (
+              <button
+                id="empty-all-time"
+                onClick={() => applyPreset('all')}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 transition-all active:scale-95"
+              >
+                <span>View All Time</span>
+              </button>
+            )}
+            <button
+              id="empty-last-month"
+              onClick={() => applyPreset('last_month')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/[0.06] hover:bg-white/[0.12] text-slate-200 border border-white/[0.08] transition-all active:scale-95"
+            >
+              <span>View Last Month</span>
+            </button>
+            {(quickFilter !== 'all' || filterAccount || filterSupplier) && (
+              <button
+                id="empty-clear-filters"
+                onClick={() => {
+                  setQuickFilter('all');
+                  setFilterAccount('');
+                  setFilterSupplier('');
+                }}
+                className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition-all active:scale-95"
+              >
+                Clear Filters
+              </button>
+            )}
+          </div>
         </div>
       ) : (
         <div className="space-y-3">
